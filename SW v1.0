@@ -1,0 +1,171 @@
+// Variables used by Scriptable.
+// Do Not Delete
+// TheDevilsDoctor
+
+// Instructions:
+// 1. Set the location by modifying the 'location' variable below.
+//    Use the format "City, State" (e.g., "Cary, NC").
+// 2. Ensure your image file is named correctly and stored in the Scriptable folder in iCloud Drive.
+//    Update the 'filePath' variable to match your image file name and extension if needed (e.g., 'myImage.JPG').
+
+const location = "Cary, NC"; // Location for Cary, NC
+
+// Setting up widget
+let widget = new ListWidget();
+
+// Path to your image in iCloud Drive
+const fm = FileManager.iCloud();
+const filePath = fm.joinPath(fm.documentsDirectory(), 'IMG_5340.JPG'); // Change 'IMG_5340.JPG' to your image file name
+
+// Check if the file exists
+if (fm.fileExists(filePath)) {
+  // Set the background image
+  widget.backgroundImage = await fm.readImage(filePath);
+} else {
+  console.log("Image file does not exist at the specified path.");
+}
+
+// Fetch weather data
+let weatherData = await fetchWeatherData();
+if (!weatherData) {
+  widget.addText("Failed to load weather data.");
+} else {
+  try {
+    let temperature = weatherData.current_condition[0].temp_F; // Temperature in Fahrenheit
+    let condition = weatherData.current_condition[0].weatherDesc[0].value; // Weather description
+    console.log("Current Temperature: " + temperature);
+    console.log("Current Condition: " + condition);
+
+    // Generate a funny weather phrase based on conditions
+    let weatherPhrase = generateFunnyPhrase(temperature, condition);
+
+    // Add the phrase to the widget
+    let phraseText = widget.addText(weatherPhrase);
+    phraseText.font = Font.boldSystemFont(16);
+    phraseText.textColor = Color.white();
+  } catch (error) {
+    console.log("Error processing weather data: " + error);
+    widget.addText("Data format error.");
+  }
+}
+
+widget.presentMedium();
+Script.setWidget(widget);
+Script.complete();
+
+// Fetch weather data from wttr.in
+async function fetchWeatherData() {
+  const url = `https://wttr.in/${location}?format=j1`;
+  console.log("Fetching weather data from URL: " + url); // Log the request URL
+  try {
+    const response = await new Request(url).loadJSON();
+    console.log("Weather API Response: ", JSON.stringify(response)); // Log the response
+    if (response && response.current_condition) {
+      return response;
+    } else {
+      console.log("Error: weatherData is missing or incomplete.");
+      return null;
+    }
+  } catch (e) {
+    console.log("Error fetching weather data: " + e);
+    return null;
+  }
+}
+
+// Generate funny weather phrases based on temperature and weather condition
+function generateFunnyPhrase(temp, condition) {
+  let phrase = "";
+
+  // Define rude and funny phrases based on temperature ranges
+  const tempPhrases = [
+    {
+      condition: temp > 85,
+      phrases: [
+        "It's hotter than a sauna in hell at " + Math.round(temp) + "°F! Better bring some ice water and your sense of humor!",
+        "Sweatin' like a sinner in church at " + Math.round(temp) + "°F! Stay hydrated, or you'll melt!",
+        "It's hotter than your ex's attitude at " + Math.round(temp) + "°F! Stay cool, if you can!"
+      ]
+    },
+    {
+      condition: temp > 60 && temp <= 85,
+      phrases: [
+        "Pretty nice, but don’t get cocky at " + Math.round(temp) + "°F! Don't let it go to your head!",
+        "Good weather? Don't let it fool you; life's still a dumpster fire at " + Math.round(temp) + "°F!",
+        "Feels great out here! Enjoy it while it lasts, because nothing good lasts forever at " + Math.round(temp) + "°F!"
+      ]
+    },
+    {
+      condition: temp > 32 && temp <= 60,
+      phrases: [
+        "Cold enough to make your balls shrink at " + Math.round(temp) + "°F! Time to bundle up!",
+        "It's that awkward temperature where you can still complain at " + Math.round(temp) + "°F!",
+        "Chilly enough to remind you how unprepared you are at " + Math.round(temp) + "°F!"
+      ]
+    },
+    {
+      condition: temp <= 32,
+      phrases: [
+        "It's freezing your ass off at " + Math.round(temp) + "°F! Better get your hot cocoa ready!",
+        "Cold enough to make a polar bear cry at " + Math.round(temp) + "°F! Who's bright idea was this weather?",
+        "It's frigid out there—time to become a hermit at " + Math.round(temp) + "°F!"
+      ]
+    }
+  ];
+
+  // Randomly select one temperature phrase that meets the condition
+  const validTempPhrases = tempPhrases.filter(tp => tp.condition);
+  if (validTempPhrases.length > 0) {
+    const randomTempIndex = Math.floor(Math.random() * validTempPhrases.length);
+    const randomPhraseIndex = Math.floor(Math.random() * validTempPhrases[randomTempIndex].phrases.length);
+    phrase += validTempPhrases[randomTempIndex].phrases[randomPhraseIndex];
+  }
+
+  // Weather description phrases
+  const phrasesByCondition = {
+    "Clear": [
+      "Clear skies, time to show off that ugly mug!",
+      "Sunny day! Hope you brought your sunscreen and your attitude!",
+      "Clear as day, but don’t let it fool you—life still sucks!"
+    ],
+    "Partly": [ // Match "Partly" for better condition recognition
+      "Partly cloudy, like your brain on a Tuesday!",
+      "A little cloud cover to hide your poor choices.",
+      "Partly cloudy, just like your love life!"
+    ],
+    "Cloudy": [
+      "Cloudy... Just like my hopes and dreams.",
+      "Overcast, just like your personality!",
+      "Cloudy skies, perfect for a pity party!"
+    ],
+    "Rain": [
+      "It's raining, so grab your umbrella and your excuses!",
+      "Rainy day, a great time for binge-watching and feeling sorry for yourself!",
+      "Wet outside—don’t slip on your failures!"
+    ],
+    "Snow": [
+      "Snowy AF, hope you like shoveling your problems!",
+      "Let it snow! More work and less fun for you.",
+      "Snowflakes everywhere! Just like your bad decisions!"
+    ],
+    "Default": [
+      "Weather is weird today, just like you!",
+      "Who knows what the weather will do next? Not even the meteorologists!",
+      "Just another unpredictable day in your chaotic life!"
+    ]
+  };
+
+  // Log the clean condition for debugging
+  console.log("Clean Condition: ", condition.split(" ")[0]);
+  
+  // Determine which set of phrases to use based on condition
+  const cleanCondition = condition.split(" ")[0]; // Get the first word for matching
+  const conditionPhrases = phrasesByCondition[cleanCondition] || phrasesByCondition["Default"];
+
+  // Randomly select one phrase from the selected condition array
+  if (conditionPhrases.length > 0) {
+    const randomConditionIndex = Math.floor(Math.random() * conditionPhrases.length);
+    phrase += " " + conditionPhrases[randomConditionIndex];
+  }
+
+  return phrase;
+}
